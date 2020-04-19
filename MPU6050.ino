@@ -9,9 +9,7 @@
     #include "Wire.h"
 #endif
 
-#define LOG_INPUT 0
-#define MANUAL_TUNING 1
-#define LOG_PID_CONSTANTS 1 //MANUAL_TUNING must be 1
+#define LOG_INPUT 1
 #define MOVE_BACK_FORTH 0
 
 #define MIN_ABS_SPEED 5
@@ -29,27 +27,18 @@ uint16_t fifoCount;     // count of all bytes currently in FIFO
 uint8_t fifoBuffer[64]; // FIFO storage buffer
 
 // orientation/motion vars
-Quaternion q;           // [w, x, y, z]         quaternion container
-VectorFloat gravity;    // [x, y, z]            gravity vector
+Quaternion q;           // [w, x, y, z]         quaternion container// phương hướng
+VectorFloat gravity;    // [x, y, z]            gravity vector// gia tốc
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
-//PID
 
-#if MANUAL_TUNING
-  double kp , ki, kd;
-  double prevKp, prevKi, prevKd;
-#endif
-double originalSetpoint = 178.70;// 181.13
+double originalSetpoint = 181.27;// 181.13
 double setpoint = originalSetpoint;
 double movingAngleOffset = 0.15;// 0.3- OK, 0.15 - OK
 double input, output;
 int moveState=0; //0 = balance; 1 = back; 2 = forth
-
-#if MANUAL_TUNING
-  PID pid(&input, &output, &setpoint, 0, 0, 0, DIRECT);
-#else
-  PID pid(&input, &output, &setpoint, 10.50, 67.44, 0.88, DIRECT);// time 5ms & 10ms, sometimes Kp(17.35, 16.86) Ki(302.05, 301.05) Kd(1.21)
-#endif
+//kp->ki->kd// giá trị sẽ được thiết lập mặc định
+PID pid(&input, &output, &setpoint, 20, 0, 0, DIRECT);// time 5ms & 10ms, sometimes Kp(17.35, 16.86) Ki(302.05, 301.05) Kd(1.21)
 
 //MOTOR CONTROLLER
 
@@ -64,7 +53,6 @@ LMotorController motorController(ENA, IN1, IN2, ENB, IN3, IN4, 1, 1);
 
 //timers
 
-long time1Hz = 0;
 long time5Hz = 0;
 
 volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
@@ -107,16 +95,12 @@ void loop()
         //no mpu data - performing PID calculations and output to motors
         
         pid.Compute();
+        Serial.print("INPUT:");Serial.println(input);
+        Serial.print("OUTPUT:");Serial.println(output);
         motorController.move(output, MIN_ABS_SPEED);
         
         unsigned long currentMillis = millis();
-
-        if (currentMillis - time1Hz >= 1000)
-        {
-            loopAt1Hz();
-            time1Hz = currentMillis;
-        }
-        
+                
         if (currentMillis - time5Hz >= 5000)
         {
             loopAt5Hz();
@@ -163,15 +147,12 @@ void loop()
             Serial.print("\t");
             Serial.println(ypr[2] * 180/M_PI);//rool// nghiên về hai bên
         #endif
-        input = ypr[1] * 180/M_PI + 180;//lấy chuyển động pitch // ngả về trước hoặc về sau
+        input = ypr[2]*180/M_PI+180;//lấy chuyển động pitch // ngả về trước hoặc về sau
+        //+ 180 là vì thẳng đứng
+        pid.Compute();
+        Serial.print("INPUT:");Serial.println(input);
+        Serial.print("OUTPUT:");Serial.println(output);
    }
-}
-
-void loopAt1Hz()
-{
-#if MANUAL_TUNING
-    setPIDTuningValues();//lấy dữ liệu từ biến trở
-#endif
 }
 
 void loopAt5Hz()
@@ -221,6 +202,7 @@ void setupMPU(){
         //arduino uno có 2 ngắt
         Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0)..."));
         attachInterrupt(0, dmpDataReady, RISING);//hàm dmpDataReady//RISING to trigger when the pin goes from low to high//để kích hoạt khi pin từ thấp đến cao
+        // interrupt 0 ứng với chân ngắt 2
         mpuIntStatus = mpu.getIntStatus();
 
         // set our DMP Ready flag so the main loop() function knows it's okay to use it
@@ -247,36 +229,3 @@ void setupMPU(){
         Serial.println(F(")"));
     }
 }
-
-//Điều chỉnh PID
-
-#if MANUAL_TUNING
-void setPIDTuningValues()
-{
-    readPIDTuningValues();
-    
-    if (kp != prevKp || ki != prevKi || kd != prevKd)
-    {
-#if LOG_PID_CONSTANTS
-        Serial.print(kp);
-        Serial.print(", ");
-        Serial.print(ki);
-        Serial.print(", ");
-        Serial.println(kd);
-#endif
-        pid.SetTunings(kp, ki, kd);
-        prevKp = kp; prevKi = ki; prevKd = kd;
-    }
-}
-
-void readPIDTuningValues()
-{
-    int potKp = analogRead(A0);
-    int potKi = analogRead(A1);
-    int potKd = analogRead(A2);
-        
-    kp = map(potKp, 0, 1023, 0, 25000) / 100.0; //0 - 250
-    ki = map(potKi, 0, 1023, 0, 100000) / 100.0; //0 - 1000
-    kd = map(potKd, 0, 1023, 0, 500) / 100.0; //0 - 5
-}
-#endif

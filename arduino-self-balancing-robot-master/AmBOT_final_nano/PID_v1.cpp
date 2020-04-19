@@ -188,3 +188,4 @@ double PID::GetKi(){ return  dispKi;}
 double PID::GetKd(){ return  dispKd;}
 int PID::GetMode(){ return  inAuto ? AUTOMATIC : MANUAL;}
 int PID::GetDirection(){ return controllerDirection;}
+

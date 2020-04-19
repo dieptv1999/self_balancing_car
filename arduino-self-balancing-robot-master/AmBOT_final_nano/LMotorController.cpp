@@ -24,41 +24,41 @@ LMotorController::LMotorController(int ena, int in1, int in2, int enb, int in3, 
 }
 
 
-//void LMotorController::move(int leftSpeed, int rightSpeed, int minAbsSpeed)
-//{
-//    if (rightSpeed < 0)
-//    {
-//        rightSpeed = min(rightSpeed, -1*minAbsSpeed);
-//        rightSpeed = max(rightSpeed, -255);
-//    }
-//    else if (rightSpeed > 0)
-//    {
-//        rightSpeed = max(rightSpeed, minAbsSpeed);
-//        rightSpeed = min(rightSpeed, 255);
-//    }
-//    
-//    int realRightSpeed = map(abs(rightSpeed), 0, 255, minAbsSpeed, 255);
-//
-//    if (leftSpeed < 0)
-//    {
-//        leftSpeed = min(leftSpeed, -1*minAbsSpeed);
-//        leftSpeed = max(leftSpeed, -255);
-//    }
-//    else if (leftSpeed > 0)
-//    {
-//        leftSpeed = max(leftSpeed, minAbsSpeed);
-//        leftSpeed = min(leftSpeed, 255);
-//    }
-//    
-//    int realLeftSpeed = map(abs(leftSpeed), 0, 255, minAbsSpeed, 255);
-//    
-//    digitalWrite(_in3, rightSpeed > 0 ? HIGH : LOW);
-//    digitalWrite(_in4, rightSpeed > 0 ? LOW : HIGH);
-//    digitalWrite(_in1, leftSpeed > 0 ? HIGH : LOW);
-//    digitalWrite(_in2, leftSpeed > 0 ? LOW : HIGH);
-//    analogWrite(_ena, realRightSpeed * _motorAConst);
-//    analogWrite(_enb, realLeftSpeed * _motorBConst);
-//}
+void LMotorController::move(int leftSpeed, int rightSpeed, int minAbsSpeed)
+{
+    if (rightSpeed < 0)
+    {
+        rightSpeed = min(rightSpeed, -1*minAbsSpeed);
+        rightSpeed = max(rightSpeed, -255);
+    }
+    else if (rightSpeed > 0)
+    {
+        rightSpeed = max(rightSpeed, minAbsSpeed);
+        rightSpeed = min(rightSpeed, 255);
+    }
+    
+    int realRightSpeed = map(abs(rightSpeed), 0, 255, minAbsSpeed, 255);
+
+    if (leftSpeed < 0)
+    {
+        leftSpeed = min(leftSpeed, -1*minAbsSpeed);
+        leftSpeed = max(leftSpeed, -255);
+    }
+    else if (leftSpeed > 0)
+    {
+        leftSpeed = max(leftSpeed, minAbsSpeed);
+        leftSpeed = min(leftSpeed, 255);
+    }
+    
+    int realLeftSpeed = map(abs(leftSpeed), 0, 255, minAbsSpeed, 255);
+    
+    digitalWrite(_in3, rightSpeed > 0 ? HIGH : LOW);
+    digitalWrite(_in4, rightSpeed > 0 ? LOW : HIGH);
+    digitalWrite(_in1, leftSpeed > 0 ? HIGH : LOW);
+    digitalWrite(_in2, leftSpeed > 0 ? LOW : HIGH);
+    analogWrite(_ena, realRightSpeed * _motorAConst);
+    analogWrite(_enb, realLeftSpeed * _motorBConst);
+}
 
 
 void LMotorController::move(int speed, int minAbsSpeed)
@@ -81,11 +81,7 @@ void LMotorController::move(int speed, int minAbsSpeed)
     if (speed == _currentSpeed) return;
     
     int realSpeed = max(minAbsSpeed, abs(speed));
-
-    Serial.print("real speed A:");
-Serial.println(realSpeed * _motorAConst);
-Serial.print("real speed B:");
-Serial.println(realSpeed * _motorBConst);
+    
     digitalWrite(_in1, speed > 0 ? HIGH : LOW);
     digitalWrite(_in2, speed > 0 ? LOW : HIGH);
     digitalWrite(_in3, speed > 0 ? HIGH : LOW);
@@ -97,22 +93,22 @@ Serial.println(realSpeed * _motorBConst);
 }
 
 
-//void LMotorController::move(int speed)
-//{
-//    if (speed == _currentSpeed) return;
-//    
-//    if (speed > 255) speed = 255;
-//    else if (speed < -255) speed = -255;
-//    
-//    digitalWrite(_in1, speed > 0 ? HIGH : LOW);
-//    digitalWrite(_in2, speed > 0 ? LOW : HIGH);
-//    digitalWrite(_in3, speed > 0 ? HIGH : LOW);
-//    digitalWrite(_in4, speed > 0 ? LOW : HIGH);
-//    analogWrite(_ena, abs(speed) * _motorAConst);
-//    analogWrite(_enb, abs(speed) * _motorBConst);
-//    
-//    _currentSpeed = speed;
-//}
+void LMotorController::move(int speed)
+{
+    if (speed == _currentSpeed) return;
+    
+    if (speed > 255) speed = 255;
+    else if (speed < -255) speed = -255;
+    
+    digitalWrite(_in1, speed > 0 ? HIGH : LOW);
+    digitalWrite(_in2, speed > 0 ? LOW : HIGH);
+    digitalWrite(_in3, speed > 0 ? HIGH : LOW);
+    digitalWrite(_in4, speed > 0 ? LOW : HIGH);
+    analogWrite(_ena, abs(speed) * _motorAConst);
+    analogWrite(_enb, abs(speed) * _motorBConst);
+    
+    _currentSpeed = speed;
+}
 
 
 void LMotorController::turnLeft(int speed, bool kick)
