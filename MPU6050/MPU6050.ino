@@ -12,7 +12,7 @@
 #define LOG_INPUT 1
 #define MOVE_BACK_FORTH 0
 
-#define MIN_ABS_SPEED 5
+#define MIN_ABS_SPEED 10
 
 //MPU
 
@@ -39,15 +39,14 @@ double input, output;
 int moveState=0; //0 = balance; 1 = back; 2 = forth
 //kp->ki->kd// giá trị sẽ được thiết lập mặc định
 PID pid(&input, &output, &setpoint, 20, 0, 0, DIRECT);// time 5ms & 10ms, sometimes Kp(17.35, 16.86) Ki(302.05, 301.05) Kd(1.21)
-
 //MOTOR CONTROLLER
 
-int ENA = 3;
-int IN1 = 4;
+int ENA = 5;
+int IN1 = 6;
 int IN2 = 8;
-int IN3 = 5;
-int IN4 = 7;
-int ENB = 6;
+int IN3 = 9;
+int IN4 = 10;
+int ENB = 11;
 
 LMotorController motorController(ENA, IN1, IN2, ENB, IN3, IN4, 1, 1);
 
@@ -97,7 +96,7 @@ void loop()
         pid.Compute();
         Serial.print("INPUT:");Serial.println(input);
         Serial.print("OUTPUT:");Serial.println(output);
-        motorController.move(output, MIN_ABS_SPEED);
+        motorController.move(60,10);
         
         unsigned long currentMillis = millis();
                 
@@ -150,8 +149,8 @@ void loop()
         input = ypr[2]*180/M_PI+180;//lấy chuyển động pitch // ngả về trước hoặc về sau
         //+ 180 là vì thẳng đứng
         pid.Compute();
-        Serial.print("INPUT:");Serial.println(input);
-        Serial.print("OUTPUT:");Serial.println(output);
+       // Serial.print("INPUT:");Serial.println(input);
+        //Serial.print("OUTPUT:");Serial.println(output);
    }
 }
 
@@ -201,7 +200,7 @@ void setupMPU(){
         // enable Arduino interrupt detection
         //arduino uno có 2 ngắt
         Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0)..."));
-        attachInterrupt(0, dmpDataReady, RISING);//hàm dmpDataReady//RISING to trigger when the pin goes from low to high//để kích hoạt khi pin từ thấp đến cao
+        attachInterrupt(2, dmpDataReady, RISING);//hàm dmpDataReady//RISING to trigger when the pin goes from low to high//để kích hoạt khi pin từ thấp đến cao
         // interrupt 0 ứng với chân ngắt 2
         mpuIntStatus = mpu.getIntStatus();
 
