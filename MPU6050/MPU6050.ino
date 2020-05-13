@@ -32,27 +32,23 @@ VectorFloat gravity;    // [x, y, z]            gravity vector// gia tốc
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
 
-double originalSetpoint = 181.27;// 181.13
+double originalSetpoint = 181.5;// 181.13
 double setpoint = originalSetpoint;
 double movingAngleOffset = 0.15;// 0.3- OK, 0.15 - OK
 double input, output;
 int moveState=0; //0 = balance; 1 = back; 2 = forth
 //kp->ki->kd// giá trị sẽ được thiết lập mặc định
-PID pid(&input, &output, &setpoint, 20, 0, 0, DIRECT);// time 5ms & 10ms, sometimes Kp(17.35, 16.86) Ki(302.05, 301.05) Kd(1.21)
+PID pid(&input, &output, &setpoint, 16.86, 303, 1.21, DIRECT);// time 5ms & 10ms, sometimes Kp(17.35, 16.86) Ki(302.05, 301.05) Kd(1.21)
 //MOTOR CONTROLLER
 
 int ENA = 5;
-int IN1 = 6;
-int IN2 = 8;
-int IN3 = 9;
-int IN4 = 10;
-int ENB = 11;
+int IN1 = 8;
+int IN2 = 9;
+int IN3 = 10;
+int IN4 = 11;
+int ENB = 6;
 
 LMotorController motorController(ENA, IN1, IN2, ENB, IN3, IN4, 1, 1);
-
-//timers
-
-long time5Hz = 0;
 
 volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
 void dmpDataReady()
@@ -65,7 +61,7 @@ void setup()
     // join I2C bus (I2Cdev library doesn't do this automatically)
     #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
         Wire.begin();
-        TWBR = 24; // 400kHz I2C clock (200kHz if CPU is 8MHz)
+        Wire.setClock(200);
     #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
         Fastwire::setup(400, true);
     #endif
@@ -96,19 +92,13 @@ void loop()
         pid.Compute();
         Serial.print("INPUT:");Serial.println(input);
         Serial.print("OUTPUT:");Serial.println(output);
-        motorController.move(60,10);
-        
-        unsigned long currentMillis = millis();
-                
-        if (currentMillis - time5Hz >= 5000)
-        {
-            loopAt5Hz();
-            time5Hz = currentMillis;
-        }
+        motorController.move(output,10);
+        attachInterrupt(2, dmpDataReady, RISING);
     }
 
     // reset interrupt flag and get INT_STATUS byte
     mpuInterrupt = false;
+    detachInterrupt(2);
     mpuIntStatus = mpu.getIntStatus();
 
     // get current FIFO count
@@ -152,6 +142,8 @@ void loop()
        // Serial.print("INPUT:");Serial.println(input);
         //Serial.print("OUTPUT:");Serial.println(output);
    }
+
+   
 }
 
 void loopAt5Hz()
