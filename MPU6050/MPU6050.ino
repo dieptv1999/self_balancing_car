@@ -2,6 +2,7 @@
 #include "PID_v1.h"
 #include "LMotorController.h"
 #include <I2Cdev.h>
+#include <FlexiTimer2.h>
 
 #include <MPU6050_6Axis_MotionApps20.h>
 
@@ -38,7 +39,10 @@ double movingAngleOffset = 0.15;// 0.3- OK, 0.15 - OK
 double input, output;
 int moveState=0; //0 = balance; 1 = back; 2 = forth
 //kp->ki->kd// giá trị sẽ được thiết lập mặc định
-PID pid(&input, &output, &setpoint, 16.86, 303, 1.21, DIRECT);// time 5ms & 10ms, sometimes Kp(17.35, 16.86) Ki(302.05, 301.05) Kd(1.21)
+float kp = 16.86;
+float ki = 303;
+float kd = 1.21;
+PID pid(&input, &output, &setpoint, kp, ki, kd, DIRECT);// time 5ms & 10ms, sometimes Kp(17.35, 16.86) Ki(302.05, 301.05) Kd(1.21)
 //MOTOR CONTROLLER
 
 int ENA = 5;
@@ -48,12 +52,50 @@ int IN3 = 10;
 int IN4 = 11;
 int ENB = 6;
 
+////////////////Bluetooth transceiver////////////
+unsigned char RxBuf[12]={0};
+
 LMotorController motorController(ENA, IN1, IN2, ENB, IN3, IN4, 1, 1);
 
 volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
 void dmpDataReady()
 {
     mpuInterrupt = true;
+}
+
+void Uart_Recieve()
+{
+  if(Serial.available()>=12)
+  {
+    int i=0;
+    while(i!=12)
+    {
+      RxBuf[i]=Serial.read();
+      i++;
+    }
+    for(int i = 0; i < 12; ++i){
+      RxBuf[i]=(RxBuf[i] < 0 ? RxBuf[i] + 256 : RxBuf[i]);
+    }
+    int a = 0, b = 0, c = 0;
+    a = (a<<8)|RxBuf[0];
+    a = (a<<8)|RxBuf[1];
+    a = (a<<8)|RxBuf[2];
+    a = (a<<8)|RxBuf[3];
+    b = (b<<8)|RxBuf[4];
+    b = (b<<8)|RxBuf[5];
+    b = (b<<8)|RxBuf[6];
+    b = (b<<8)|RxBuf[7];
+    c = (c<<8)|RxBuf[8];
+    c = (c<<8)|RxBuf[9];
+    c = (c<<8)|RxBuf[10];
+    c = (c<<8)|RxBuf[11];
+    if (a!=0 && b!=0 && c!=0){
+      kp=a/100.0f;
+      ki=b/100.0f;
+      kd=c/100.0f;
+    }
+    while(Serial.read()>= 0){}
+  }
 }
 
 void setup()
@@ -77,6 +119,8 @@ void setup()
     Serial.println(F("Testing device connections..."));
     Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
     setupMPU();
+    FlexiTimer2::set(200, Uart_Recieve);    //20ms//ngat
+    FlexiTimer2::start();
 }
 
 void loop()
@@ -137,7 +181,6 @@ void loop()
             Serial.println(ypr[2] * 180/M_PI);//rool// nghiên về hai bên
         #endif
         input = ypr[2]*180/M_PI+180;//lấy chuyển động pitch // ngả về trước hoặc về sau
-        //+ 180 là vì thẳng đứng
         pid.Compute();
        // Serial.print("INPUT:");Serial.println(input);
         //Serial.print("OUTPUT:");Serial.println(output);

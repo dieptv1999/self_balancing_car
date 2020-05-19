@@ -82,10 +82,10 @@ void LMotorController::move(int speed, int minAbsSpeed)
     
     int realSpeed = max(minAbsSpeed, abs(speed));
 
-    Serial.print("real speed A:");
-Serial.println(realSpeed * _motorAConst);
-Serial.print("real speed B:");
-Serial.println(realSpeed * _motorBConst);
+//    Serial.print("real speed A:");
+//Serial.println(realSpeed * _motorAConst);
+//Serial.print("real speed B:");
+//Serial.println(realSpeed * _motorBConst);
     digitalWrite(_in1, speed > 0 ? HIGH : LOW);
     digitalWrite(_in2, speed > 0 ? LOW : HIGH);
     digitalWrite(_in3, speed > 0 ? HIGH : LOW);
