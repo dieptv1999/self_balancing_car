@@ -65,12 +65,12 @@ void dmpDataReady()
 
 void Uart_Recieve()
 {
-  if(Serial.available()>=12)
+  if(Serial1.available()>=12)
   {
     int i=0;
     while(i!=12)
     {
-      RxBuf[i]=Serial.read();
+      RxBuf[i]=Serial1.read();
       i++;
     }
     for(int i = 0; i < 12; ++i){
@@ -94,7 +94,12 @@ void Uart_Recieve()
       ki=b/100.0f;
       kd=c/100.0f;
     }
-    while(Serial.read()>= 0){}
+    while(Serial1.read()>= 0){}
+    Serial1.print(kp);
+    Serial1.print(":");
+    Serial1.print(ki);
+    Serial1.print(":");
+    Serial1.println(kd);
   }
 }
 
@@ -121,6 +126,7 @@ void setup()
     setupMPU();
     FlexiTimer2::set(200, Uart_Recieve);    //20ms//ngat
     FlexiTimer2::start();
+    Serial1.begin(9600);
 }
 
 void loop()
@@ -235,8 +241,8 @@ void setupMPU(){
         // enable Arduino interrupt detection
         //arduino uno có 2 ngắt
         Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0)..."));
-        attachInterrupt(2, dmpDataReady, RISING);//hàm dmpDataReady//RISING to trigger when the pin goes from low to high//để kích hoạt khi pin từ thấp đến cao
-        // interrupt 0 ứng với chân ngắt 2
+        attachInterrupt(4, dmpDataReady, RISING);//hàm dmpDataReady//RISING to trigger when the pin goes from low to high//để kích hoạt khi pin từ thấp đến cao
+        // interrupt 4 ứng với chân ngắt 2
         mpuIntStatus = mpu.getIntStatus();
 
         // set our DMP Ready flag so the main loop() function knows it's okay to use it
