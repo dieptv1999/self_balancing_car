@@ -74,14 +74,14 @@ void Uart_Recieve()
 {
   if(Serial1.available())
   {
-    BluetoothData=Serial.read(); //Get next character from bluetooth
+    BluetoothData=Serial1.read(); //Get next character from bluetooth
     //**** Control Pad on Right -  Sends 'X__,Y___*' every 150ms
     if(BluetoothData=='X'){
-      pad_x=Serial.parseInt();
+      pad_x=Serial1.parseInt();
       while (BluetoothData!='*'){
-        if (Serial.available()){
-          BluetoothData=Serial.read(); //Get next character from bluetooth
-          if(BluetoothData=='Y')pad_y=-Serial.parseInt();
+        if (Serial1.available()){
+          BluetoothData=Serial1.read(); //Get next character from bluetooth
+          if(BluetoothData=='Y')pad_y=-Serial1.parseInt();
         }
       }
       //Algorithm to convert pad position to number of steps for each motor
@@ -131,9 +131,9 @@ void setup()
     Serial.println(F("Testing device connections..."));
     Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
     setupMPU();
+    Serial1.begin(9600);
     FlexiTimer2::set(60, Uart_Recieve);    //60ms//ngat
     FlexiTimer2::start();
-    Serial1.begin(9600);
 }
 
 void loop()
