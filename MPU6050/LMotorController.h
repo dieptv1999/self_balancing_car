@@ -13,7 +13,7 @@ protected:
     double _motorAConst, _motorBConst;
 public:
     LMotorController(int ena, int in1, int in2, int enb, int in3, int in4, double motorAConst, double motorBConst);
-//    void move(int leftSpeed, int rightSpeed, int minAbsSpeed);
+    void move(int leftSpeed, int rightSpeed, int minAbsSpeed);
 //    void move(int speed);
     void move(int speed, int minAbsSpeed);
     void turnLeft(int speed, bool kick);

@@ -12,7 +12,7 @@
 
 #define LOG_INPUT 1
 #define MOVE_BACK_FORTH 0
-
+#define UNIT_SPEED 2
 #define MIN_ABS_SPEED 10
 
 //MPU
@@ -52,8 +52,15 @@ int IN3 = 10;
 int IN4 = 11;
 int ENB = 6;
 
-////////////////Bluetooth transceiver////////////
-unsigned char RxBuf[12]={0};
+
+//control
+int steps1=0; //number of steps for Left Stepper each loop
+int steps2=0;
+int roll,pitch; //roll and pitch sent from Android device
+int pad_x,pad_y; //control pad values sent from Andorid device
+char BluetoothData; // the Bluetooth data received
+boolean acc_on=false; //Flag to inidicate if to use accelerometer values
+
 
 LMotorController motorController(ENA, IN1, IN2, ENB, IN3, IN4, 1, 1);
 
@@ -65,41 +72,41 @@ void dmpDataReady()
 
 void Uart_Recieve()
 {
-  if(Serial1.available()>=12)
+  if(Serial1.available())
   {
-    int i=0;
-    while(i!=12)
-    {
-      RxBuf[i]=Serial1.read();
-      i++;
+    BluetoothData=Serial.read(); //Get next character from bluetooth
+    //**** Control Pad on Right -  Sends 'X__,Y___*' every 150ms
+    if(BluetoothData=='X'){
+      pad_x=Serial.parseInt();
+      while (BluetoothData!='*'){
+        if (Serial.available()){
+          BluetoothData=Serial.read(); //Get next character from bluetooth
+          if(BluetoothData=='Y')pad_y=-Serial.parseInt();
+        }
+      }
+      //Algorithm to convert pad position to number of steps for each motor
+      float mag=sqrt(pad_y*pad_y+pad_x*pad_x);
+      if (mag>10) mag=10;
+      if (pad_y<0) mag=0-mag;
+      steps1=steps2=mag;
+       if (pad_x>0){ //turning right
+        steps2=steps2-mag*pad_x/5.0;
+      }else{ //turnign left
+        steps1=steps1+mag*pad_x/5.0;
+      }
     }
-    for(int i = 0; i < 12; ++i){
-      RxBuf[i]=(RxBuf[i] < 0 ? RxBuf[i] + 256 : RxBuf[i]);
+    //**** Control Pad on Left
+    if(BluetoothData=='0') steps1=steps2=0; //Release 
+    if(BluetoothData=='1') steps1=steps2=10; //Up
+    if(BluetoothData=='3') steps1=steps2=-10; //Down
+    if(BluetoothData=='4') { //Left
+      steps1=-10;
+      steps2=10; 
     }
-    int a = 0, b = 0, c = 0;
-    a = (a<<8)|RxBuf[0];
-    a = (a<<8)|RxBuf[1];
-    a = (a<<8)|RxBuf[2];
-    a = (a<<8)|RxBuf[3];
-    b = (b<<8)|RxBuf[4];
-    b = (b<<8)|RxBuf[5];
-    b = (b<<8)|RxBuf[6];
-    b = (b<<8)|RxBuf[7];
-    c = (c<<8)|RxBuf[8];
-    c = (c<<8)|RxBuf[9];
-    c = (c<<8)|RxBuf[10];
-    c = (c<<8)|RxBuf[11];
-    if (a!=0 && b!=0 && c!=0){
-      kp=a/100.0f;
-      ki=b/100.0f;
-      kd=c/100.0f;
-    }
-    while(Serial1.read()>= 0){}
-    Serial1.print(kp);
-    Serial1.print(":");
-    Serial1.print(ki);
-    Serial1.print(":");
-    Serial1.println(kd);
+    if(BluetoothData=='2') { //Right
+      steps1=10;
+      steps2=-10; 
+    }  
   }
 }
 
@@ -124,7 +131,7 @@ void setup()
     Serial.println(F("Testing device connections..."));
     Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
     setupMPU();
-    FlexiTimer2::set(200, Uart_Recieve);    //20ms//ngat
+    FlexiTimer2::set(60, Uart_Recieve);    //60ms//ngat
     FlexiTimer2::start();
     Serial1.begin(9600);
 }
@@ -142,7 +149,7 @@ void loop()
         pid.Compute();
         Serial.print("INPUT:");Serial.println(input);
         Serial.print("OUTPUT:");Serial.println(output);
-        motorController.move(output,10);
+        motorController.move(output + steps1, output + steps2,MIN_ABS_SPEED);
         attachInterrupt(2, dmpDataReady, RISING);
     }
 
