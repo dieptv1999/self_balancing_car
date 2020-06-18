@@ -2,7 +2,6 @@
 #include "PID_v1.h"
 #include "LMotorController.h"
 #include "I2Cdev.h"
-#include "FlexiTimer2.h"
 
 #include "MPU6050_6Axis_MotionApps20.h"
 
@@ -13,7 +12,7 @@
 #define LOG_INPUT 1
 #define MOVE_BACK_FORTH 0
 #define UNIT_SPEED 2
-#define MIN_ABS_SPEED 10
+#define MIN_ABS_SPEED 30
 
 //MPU
 
@@ -33,24 +32,24 @@ VectorFloat gravity;    // [x, y, z]            gravity vector// gia tốc
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
 
-double originalSetpoint = 181.5;// 181.13
+double originalSetpoint = 181;// 182
 double setpoint = originalSetpoint;
 double movingAngleOffset = 0.15;// 0.3- OK, 0.15 - OK
 double input, output;
 int moveState=0; //0 = balance; 1 = back; 2 = forth
 //kp->ki->kd// giá trị sẽ được thiết lập mặc định
-float kp = 16.86;
-float ki = 303;
-float kd = 1.21;
+float kp = 39;
+float ki = 1100;
+float kd = 1.38;
 PID pid(&input, &output, &setpoint, kp, ki, kd, DIRECT);// time 5ms & 10ms, sometimes Kp(17.35, 16.86) Ki(302.05, 301.05) Kd(1.21)
 //MOTOR CONTROLLER
 
-int ENA = 5;
+int ENA = 6;
 int IN1 = 8;
 int IN2 = 9;
 int IN3 = 10;
 int IN4 = 11;
-int ENB = 6;
+int ENB = 7;
 
 
 //control
@@ -96,16 +95,17 @@ void Uart_Recieve()
       }
     }
     //**** Control Pad on Left
-    if(BluetoothData=='0') steps1=steps2=0; //Release 
-    if(BluetoothData=='1') steps1=steps2=10; //Up
-    if(BluetoothData=='3') steps1=steps2=-10; //Down
+    if(BluetoothData=='0') {steps1=steps2=0;
+    setpoint = originalSetpoint;} //Release 
+    if(BluetoothData=='1') setpoint = originalSetpoint + 1.5; //Up
+    if(BluetoothData=='3') setpoint = originalSetpoint - 1.5; //Down
     if(BluetoothData=='4') { //Left
-      steps1=-10;
-      steps2=10; 
+      steps1=-50;
+      steps2=50; 
     }
     if(BluetoothData=='2') { //Right
-      steps1=10;
-      steps2=-10; 
+      steps1=50;
+      steps2=-50; 
     }  
   }
 }
@@ -132,30 +132,11 @@ void setup()
     Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
     setupMPU();
     Serial1.begin(9600);
-    FlexiTimer2::set(60, Uart_Recieve);    //60ms//ngat
-    FlexiTimer2::start();
 }
 
 void loop()
 {
-    // if programming failed, don't try to do anything
     if (!dmpReady) return;//khi mpu đang ngắt thì set dmpReady=true 
-
-    // wait for MPU interrupt or extra packet(s) available
-    while (!mpuInterrupt && fifoCount < packetSize)
-    {
-        //no mpu data - performing PID calculations and output to motors
-        
-        pid.Compute();
-        Serial.print("INPUT:");Serial.println(input);
-        Serial.print("OUTPUT:");Serial.println(output);
-        motorController.move(output + steps1, output + steps2,MIN_ABS_SPEED);
-        attachInterrupt(2, dmpDataReady, RISING);
-    }
-
-    // reset interrupt flag and get INT_STATUS byte
-    mpuInterrupt = false;
-    detachInterrupt(2);
     mpuIntStatus = mpu.getIntStatus();
 
     // get current FIFO count
@@ -173,7 +154,9 @@ void loop()
     else if (mpuIntStatus & 0x02)
     {
         // wait for correct available data length, should be a VERY short wait
-        while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
+        while (fifoCount < packetSize){
+          fifoCount = mpu.getFIFOCount();
+        }
 
         // read a packet from FIFO
         mpu.getFIFOBytes(fifoBuffer, packetSize);
@@ -195,34 +178,11 @@ void loop()
         #endif
         input = ypr[2]*180/M_PI+180;//lấy chuyển động pitch // ngả về trước hoặc về sau
         pid.Compute();
-       // Serial.print("INPUT:");Serial.println(input);
-        //Serial.print("OUTPUT:");Serial.println(output);
+        Uart_Recieve();
+        motorController.move(output + steps1, output + steps2,MIN_ABS_SPEED);
    }
 
    
-}
-
-void loopAt5Hz()
-{
-    #if MOVE_BACK_FORTH
-        moveBackForth();
-    #endif
-}
-
-//move back and forth
-
-
-void moveBackForth()
-{
-    moveState++;
-    if (moveState > 2) moveState = 0;
-    
-    if (moveState == 0)
-      setpoint = originalSetpoint;
-    else if (moveState == 1)
-      setpoint = originalSetpoint - movingAngleOffset;
-    else
-      setpoint = originalSetpoint + movingAngleOffset;
 }
 
 void setupMPU(){
@@ -248,7 +208,7 @@ void setupMPU(){
         // enable Arduino interrupt detection
         //arduino uno có 2 ngắt
         Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0)..."));
-        attachInterrupt(4, dmpDataReady, RISING);//hàm dmpDataReady//RISING to trigger when the pin goes from low to high//để kích hoạt khi pin từ thấp đến cao
+        //attachInterrupt(4, dmpDataReady, RISING);//hàm dmpDataReady//RISING to trigger when the pin goes from low to high//để kích hoạt khi pin từ thấp đến cao
         // interrupt 4 ứng với chân ngắt 2
         mpuIntStatus = mpu.getIntStatus();
 
