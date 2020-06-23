@@ -32,7 +32,7 @@ VectorFloat gravity;    // [x, y, z]            gravity vector// gia tốc
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
 
-double originalSetpoint = 181.3;// 182
+double originalSetpoint = 181.4;// 182
 double setpoint = originalSetpoint;
 double movingAngleOffset = 0.15;// 0.3- OK, 0.15 - OK
 double input, output;
@@ -184,7 +184,7 @@ void loop()
         #endif
         input = ypr[2]*180/M_PI+180;//lấy chuyển động pitch // ngả về trước hoặc về sau
         Serial.println(abs(input-originalSetpoint));
-        if (abs(input-originalSetpoint)<6){
+        if (abs(input-originalSetpoint)<30){
           pid.Compute();
           motorController.move(output + steps1, output + steps2,MIN_ABS_SPEED);
         }
