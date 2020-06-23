@@ -9,7 +9,7 @@
     #include "Wire.h"
 #endif
 
-#define LOG_INPUT 1
+#define LOG_INPUT 0
 #define MOVE_BACK_FORTH 0
 #define UNIT_SPEED 2
 #define MIN_ABS_SPEED 30
@@ -32,7 +32,7 @@ VectorFloat gravity;    // [x, y, z]            gravity vector// gia tốc
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
 
-double originalSetpoint = 181;// 182
+double originalSetpoint = 181.3;// 182
 double setpoint = originalSetpoint;
 double movingAngleOffset = 0.15;// 0.3- OK, 0.15 - OK
 double input, output;
@@ -58,16 +58,10 @@ int steps2=0;
 int roll,pitch; //roll and pitch sent from Android device
 int pad_x,pad_y; //control pad values sent from Andorid device
 char BluetoothData; // the Bluetooth data received
-boolean acc_on=false; //Flag to inidicate if to use accelerometer values
 
 
 LMotorController motorController(ENA, IN1, IN2, ENB, IN3, IN4, 1, 1);
 
-volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
-void dmpDataReady()
-{
-    mpuInterrupt = true;
-}
 
 void Uart_Recieve()
 {
@@ -79,24 +73,29 @@ void Uart_Recieve()
       pad_x=Serial1.parseInt();
       while (BluetoothData!='*'){
         if (Serial1.available()){
-          BluetoothData=Serial1.read(); //Get next character from bluetooth
-          if(BluetoothData=='Y')pad_y=-Serial1.parseInt();
+          BluetoothData = Serial1.read(); //Get next character from bluetooth
+          if(BluetoothData=='Y') pad_y = -Serial1.parseInt();
         }
       }
       //Algorithm to convert pad position to number of steps for each motor
-      float mag=sqrt(pad_y*pad_y+pad_x*pad_x);
-      if (mag>10) mag=10;
-      if (pad_y<0) mag=0-mag;
-      steps1=steps2=mag;
-       if (pad_x>0){ //turning right
-        steps2=steps2-mag*pad_x/5.0;
+      float mag = sqrt(pad_y * pad_y + pad_x * pad_x);
+      if (mag > 15) mag = 15;
+      if (pad_y<0) mag = 0-mag;
+      steps1 = steps2 = mag;
+      if (pad_x > 0){ //turning right
+        steps2 = steps2 - mag*pad_x/5.0;
       }else{ //turnign left
-        steps1=steps1+mag*pad_x/5.0;
+        steps1 = steps1 + mag*pad_x/5.0;
       }
+      Serial.println(steps1);
+      Serial.println("|||");
+      Serial.println(steps2);
     }
     //**** Control Pad on Left
-    if(BluetoothData=='0') {steps1=steps2=0;
-    setpoint = originalSetpoint;} //Release 
+    if(BluetoothData=='0') {
+      steps1 = steps2 = 0;
+      setpoint = originalSetpoint;
+    } //Release 
     if(BluetoothData=='1') setpoint = originalSetpoint + 1.5; //Up
     if(BluetoothData=='3') setpoint = originalSetpoint - 1.5; //Down
     if(BluetoothData=='4') { //Left
@@ -108,6 +107,13 @@ void Uart_Recieve()
       steps2=-50; 
     }  
   }
+}
+
+void setupPID(){
+  //setup PID
+  pid.SetMode(AUTOMATIC);
+  pid.SetSampleTime(5);// 10 - OK, 5 - GOOD, 1- CHANGE PID
+  pid.SetOutputLimits(-255, 255);// 80 - OK Strong enough  
 }
 
 void setup()
@@ -131,12 +137,13 @@ void setup()
     Serial.println(F("Testing device connections..."));
     Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
     setupMPU();
+    setupPID();
     Serial1.begin(9600);
 }
 
 void loop()
 {
-    if (!dmpReady) return;//khi mpu đang ngắt thì set dmpReady=true 
+    if (!dmpReady) return;
     mpuIntStatus = mpu.getIntStatus();
 
     // get current FIFO count
@@ -148,7 +155,6 @@ void loop()
         // reset so we can continue cleanly
         mpu.resetFIFO();
         Serial.println(F("FIFO overflow!"));
-
     // otherwise, check for DMP data ready interrupt (this should happen frequently)
     }
     else if (mpuIntStatus & 0x02)
@@ -177,20 +183,27 @@ void loop()
             Serial.println(ypr[2] * 180/M_PI);//rool// nghiên về hai bên
         #endif
         input = ypr[2]*180/M_PI+180;//lấy chuyển động pitch // ngả về trước hoặc về sau
-        pid.Compute();
-        Uart_Recieve();
-        motorController.move(output + steps1, output + steps2,MIN_ABS_SPEED);
-   }
-
-   
+        Serial.println(abs(input-originalSetpoint));
+        if (abs(input-originalSetpoint)<15){
+          Serial.println(1);
+          pid.Compute();
+          motorController.move(output + steps1, output + steps2,MIN_ABS_SPEED);
+        }
+        else {
+          digitalWrite(IN1, LOW);
+          digitalWrite(IN2, LOW);
+          digitalWrite(IN3, LOW);
+          digitalWrite(IN4, LOW);
+        }
+   } 
+   Uart_Recieve();
 }
 
 void setupMPU(){
-  // load and configure the DMP
+    // load and configure the DMP
     //Digital Motion Processor bộ xử lí chuyển động kĩ thuật số
     Serial.println(F("Initializing DMP..."));
     devStatus = mpu.dmpInitialize();
-
     // supply your own gyro offsets here, scaled for min sensitivity
     //cung cấp bù đắp cho con quay hồi chuyển
     mpu.setXGyroOffset(39);
@@ -204,26 +217,11 @@ void setupMPU(){
         // turn on the DMP, now that it's ready
         Serial.println(F("Enabling DMP..."));
         mpu.setDMPEnabled(true);
-
-        // enable Arduino interrupt detection
-        //arduino uno có 2 ngắt
-        Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0)..."));
-        //attachInterrupt(4, dmpDataReady, RISING);//hàm dmpDataReady//RISING to trigger when the pin goes from low to high//để kích hoạt khi pin từ thấp đến cao
-        // interrupt 4 ứng với chân ngắt 2
         mpuIntStatus = mpu.getIntStatus();
-
-        // set our DMP Ready flag so the main loop() function knows it's okay to use it
-        Serial.println(F("DMP ready! Waiting for first interrupt..."));
         dmpReady = true;
 
         // get expected DMP packet size for later comparison
         packetSize = mpu.dmpGetFIFOPacketSize();
-        
-        //setup PID
-        
-        pid.SetMode(AUTOMATIC);
-        pid.SetSampleTime(5);// 10 - OK, 5 - GOOD, 1- CHANGE PID
-        pid.SetOutputLimits(-255, 255);// 80 - OK Strong enough  
     }
     else
     {
