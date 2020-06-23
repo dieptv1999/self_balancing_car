@@ -184,8 +184,7 @@ void loop()
         #endif
         input = ypr[2]*180/M_PI+180;//lấy chuyển động pitch // ngả về trước hoặc về sau
         Serial.println(abs(input-originalSetpoint));
-        if (abs(input-originalSetpoint)<15){
-          Serial.println(1);
+        if (abs(input-originalSetpoint)<6){
           pid.Compute();
           motorController.move(output + steps1, output + steps2,MIN_ABS_SPEED);
         }
