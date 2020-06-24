@@ -32,7 +32,7 @@ VectorFloat gravity;    // [x, y, z]            gravity vector// gia tốc
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
 
-double originalSetpoint = 181.4;// 182
+double originalSetpoint = 181.3;// 182
 double setpoint = originalSetpoint;
 double movingAngleOffset = 0.15;// 0.3- OK, 0.15 - OK
 double input, output;
@@ -58,6 +58,9 @@ int steps2=0;
 int pad_x,pad_y; //control pad values sent from Andorid device
 char BluetoothData; // the Bluetooth data received
 
+
+int freq = 20;
+int times = 20;
 
 LMotorController motorController(ENA, IN1, IN2, ENB, IN3, IN4, 1, 1);
 
@@ -92,8 +95,16 @@ void Uart_Recieve()
       steps1 = steps2 = 0;
       setpoint = originalSetpoint;
     } //Release 
-    if(BluetoothData=='1') setpoint = originalSetpoint + 1.5; //Up
-    if(BluetoothData=='3') setpoint = originalSetpoint - 1.5; //Down
+    if(BluetoothData=='1') 
+    {
+      setpoint = originalSetpoint + 1.5*(float)(times--/freq); //Up
+      if(times == 0) times = freq;
+    }
+    if(BluetoothData=='3') 
+    {
+      setpoint = originalSetpoint - 1.5*(float)(times--/freq); //Down
+      if(times ==0) times = freq;
+    }
     if(BluetoothData=='4') { //Left
       steps1=-50;
       steps2=50; 
@@ -179,7 +190,7 @@ void loop()
             Serial.println(ypr[2] * 180/M_PI);//rool// nghiên về hai bên
         #endif
         input = ypr[2]*180/M_PI+180;//lấy chuyển động pitch // ngả về trước hoặc về sau
-        if (abs(input-originalSetpoint)<10){
+        if (abs(input-originalSetpoint)<20){
           pid.Compute();
           //if (output==255 || output==-255) Serial.println(input-originalSetpoint);
           motorController.move(output + steps1, output + steps2,MIN_ABS_SPEED);
