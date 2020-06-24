@@ -1,4 +1,4 @@
-#include <Wire.h>
+ #include <Wire.h>
 #include "PID_v1.h"
 #include "LMotorController.h"
 #include "I2Cdev.h"
@@ -55,7 +55,6 @@ int ENB = 7;
 //control
 int steps1=0; //number of steps for Left Stepper each loop
 int steps2=0;
-int roll,pitch; //roll and pitch sent from Android device
 int pad_x,pad_y; //control pad values sent from Andorid device
 char BluetoothData; // the Bluetooth data received
 
@@ -87,9 +86,6 @@ void Uart_Recieve()
       }else{ //turnign left
         steps1 = steps1 + mag*pad_x/5.0;
       }
-      Serial.println(steps1);
-      Serial.println("|||");
-      Serial.println(steps2);
     }
     //**** Control Pad on Left
     if(BluetoothData=='0') {
@@ -183,9 +179,9 @@ void loop()
             Serial.println(ypr[2] * 180/M_PI);//rool// nghiên về hai bên
         #endif
         input = ypr[2]*180/M_PI+180;//lấy chuyển động pitch // ngả về trước hoặc về sau
-        Serial.println(abs(input-originalSetpoint));
-        if (abs(input-originalSetpoint)<30){
+        if (abs(input-originalSetpoint)<10){
           pid.Compute();
+          //if (output==255 || output==-255) Serial.println(input-originalSetpoint);
           motorController.move(output + steps1, output + steps2,MIN_ABS_SPEED);
         }
         else {
@@ -194,6 +190,8 @@ void loop()
           digitalWrite(IN3, LOW);
           digitalWrite(IN4, LOW);
         }
+//        Serial.print("OUTPUT");
+//        Serial.println(output);
    } 
    Uart_Recieve();
 }
